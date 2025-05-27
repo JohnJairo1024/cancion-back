@@ -4,9 +4,16 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
+import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.SignatureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -39,6 +46,42 @@ public class GlobalExceptionHandler {
         ErrorResponse errorResponse = new ErrorResponse(
                 HttpStatus.UNAUTHORIZED.value(),
                 "Credenciales inválidas",
+                LocalDateTime.now()
+        );
+        
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
+    
+    @ExceptionHandler(UsernameNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleUsernameNotFoundException(UsernameNotFoundException ex) {
+        log.warn("UsernameNotFoundException: {}", ex.getMessage());
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                "Usuario no encontrado",
+                LocalDateTime.now()
+        );
+        
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
+    
+    @ExceptionHandler({ExpiredJwtException.class, MalformedJwtException.class, 
+                      UnsupportedJwtException.class, SignatureException.class})
+    public ResponseEntity<ErrorResponse> handleJwtExceptions(Exception ex) {
+        log.warn("JWT Exception: {}", ex.getMessage());
+        
+        String mensaje = "Error de autenticación";
+        if (ex instanceof ExpiredJwtException) {
+            mensaje = "Token expirado";
+        } else if (ex instanceof MalformedJwtException || ex instanceof UnsupportedJwtException) {
+            mensaje = "Token inválido";
+        } else if (ex instanceof SignatureException) {
+            mensaje = "Firma del token inválida";
+        }
+        
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.UNAUTHORIZED.value(),
+                mensaje,
                 LocalDateTime.now()
         );
         
@@ -80,31 +123,24 @@ public class GlobalExceptionHandler {
     }
     
     // Clase para respuestas de error genéricas
+    @Getter
+    @Setter
     public static class ErrorResponse {
-        private int status;
-        private String message;
-        private LocalDateTime timestamp;
+        private final int status;
+        private final String message;
+        private final LocalDateTime timestamp;
         
         public ErrorResponse(int status, String message, LocalDateTime timestamp) {
             this.status = status;
             this.message = message;
             this.timestamp = timestamp;
         }
-        
-        public int getStatus() {
-            return status;
-        }
-        
-        public String getMessage() {
-            return message;
-        }
-        
-        public LocalDateTime getTimestamp() {
-            return timestamp;
-        }
+
     }
     
     // Clase para errores de validación
+    @Getter
+    @Setter
     public static class ValidationErrorResponse extends ErrorResponse {
         private Map<String, String> errors;
         
@@ -112,9 +148,6 @@ public class GlobalExceptionHandler {
             super(status, message, timestamp);
             this.errors = errors;
         }
-        
-        public Map<String, String> getErrors() {
-            return errors;
-        }
+
     }
 }

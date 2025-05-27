@@ -35,7 +35,7 @@ public class PlaylistService {
         log.info("Obteniendo todas las listas de reproducción");
         return playlistRepository.findAll().stream()
                 .map(this::mapToDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
     
     /**
@@ -146,10 +146,11 @@ public class PlaylistService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El género de la canción no puede estar vacío");
         }
         
-        // Opcional: validar que el género exista en Spotify
+        // Validar que el género exista en Spotify
         if (!spotifyService.isValidGenre(songDTO.getGenero())) {
-            log.warn("El género '{}' no está en la lista de géneros de Spotify", songDTO.getGenero());
-            // Aquí podríamos lanzar una excepción o simplemente loguearlo como advertencia
+            String errorMessage = String.format("El género '%s' no está en la lista de géneros de Spotify", songDTO.getGenero());
+            log.warn(errorMessage);
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, errorMessage);
         }
     }
     
